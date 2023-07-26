@@ -36,14 +36,51 @@ var (
 		},
 		[]string{"namespace"},
 	)
+	jobCreatedCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ray_job_created_total",
+			Help: "Counts number of jobs created",
+		},
+		[]string{"namespace"},
+	) 
+	jobsStoppedCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ray_jobs_stopped_total",
+			Help: "Counts number of jobs stopped",
+		},
+		[]string{"namespace"},
+	)
+	jobsFailedCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ray_jobs_failed_total",
+			Help: "Counts number of failed jobs",
+		},
+		[]string{"namespace"},
+	)
+	successfulJobsCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "successful_ray_jobs",
+			Help: "Counts number of jobs that have succeeded",
+		},
+		[]string{
+			"namespace",
+		},
+	)
 )
+
+// TODO add a duration histogram, with duration between cluster creation and completion?
 
 func init() {
 	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(clustersCreatedCount,
 		clustersDeletedCount,
 		clustersSuccessfulCount,
-		clustersFailedCount)
+		clustersFailedCount, 
+		jobCreatedCount,
+		jobsFailedCount,
+		jobsStoppedCount,
+		successfulJobsCount,
+	)
 }
 
 func CreatedClustersCounterInc(namespace string) {
@@ -61,4 +98,21 @@ func SuccessfulClustersCounterInc(namespace string) {
 
 func FailedClustersCounterInc(namespace string) {
 	clustersFailedCount.WithLabelValues(namespace).Inc()
+}
+
+func CreatedJobsCounterInc(namespace string) {
+	jobCreatedCount.WithLabelValues(namespace).Inc()
+}
+
+func StoppedJobsCounterInc(namespace string) {
+	jobsStoppedCount.WithLabelValues(namespace).Inc()
+}
+// failed to create
+func FailedJobsCounterInc(namespace string) {
+	jobsFailedCount.WithLabelValues(namespace).Inc()
+}
+
+// succeeded
+func SuccessfulJobsCounterInc(namespace string) {
+	successfulJobsCount.WithLabelValues(namespace).Inc()
 }

@@ -107,6 +107,7 @@ func (r *RayJobReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 			if err != nil {
 				r.Log.Info("Failed to stop job for RayJob", "error", err)
 			}
+			common.StoppedJobsCounterInc(rayJobInstance.Namespace)
 		}
 
 		r.Log.Info("Remove the finalizer no matter StopJob() succeeds or not.", "finalizer", common.RayJobStopJobFinalizer)
@@ -151,6 +152,12 @@ func (r *RayJobReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 			}
 			return ctrl.Result{Requeue: true}, nil
 		}
+	}
+	if isJobSuccessful(rayJobInstance.Status.JobStatus) {
+		common.SuccessfulJobsCounterInc(rayJobInstance.Namespace)
+	}
+	if hasJobFailed(rayJobInstance.Status.JobStatus) {
+		common.FailedJobsCounterInc(rayJobInstance.Namespace)
 	}
 
 	// Set rayClusterName and rayJobId first, to avoid duplicate submission
@@ -265,6 +272,7 @@ func (r *RayJobReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 				if err != nil {
 					return ctrl.Result{RequeueAfter: RayJobDefaultRequeueDuration}, err
 				}
+				common.StoppedJobsCounterInc(rayJobInstance.Namespace)
 			}
 			if info.JobStatus != rayv1alpha1.JobStatusStopped {
 				return ctrl.Result{RequeueAfter: RayJobDefaultRequeueDuration}, nil
@@ -431,6 +439,15 @@ func (r *RayJobReconciler) deleteCluster(ctx context.Context, rayJobInstance *ra
 // isJobSucceedOrFailed indicates whether the job comes into end status.
 func isJobSucceedOrFailed(status rayv1alpha1.JobStatus) bool {
 	return (status == rayv1alpha1.JobStatusSucceeded) || (status == rayv1alpha1.JobStatusFailed)
+}
+
+// isJobSuccessful indicates whether the job reaches the "SUCCEEDED" status
+func isJobSuccessful(status rayv1alpha1.JobStatus) bool {
+	return status == rayv1alpha1.JobStatusSucceeded
+}
+
+func hasJobFailed(status rayv1alpha1.JobStatus) bool {
+	return status == rayv1alpha1.JobStatusFailed
 }
 
 // isJobPendingOrRunning indicates whether the job is running.
